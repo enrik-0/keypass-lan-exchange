@@ -31,8 +31,7 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 ; Inbound rules for the transfer port and mDNS discovery, any profile but only from the local subnet
 ; (LANs are often classified Public). First remove the automatic per-program rules Windows creates
 ; when the user dismisses its prompt: a Block rule would override our Allow rules.
-Filename: "{sys}
-etsh.exe"; Parameters: "advfirewall firewall delete rule name=all program=""{app}\{#AppExe}"""; Flags: runhidden waituntilterminated
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=all program=""{app}\{#AppExe}"""; Flags: runhidden waituntilterminated
 ; Delete first so reinstalls/upgrades never leave duplicate rules.
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#FwTcpRule}"""; Flags: runhidden waituntilterminated
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""{#FwTcpRule}"" dir=in action=allow protocol=TCP localport=43187 profile=any remoteip=localsubnet"; Flags: runhidden waituntilterminated
