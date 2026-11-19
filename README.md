@@ -76,7 +76,7 @@ Para generar el instalador en una máquina **Windows**:
 3. El archivo distribuible estará en `installer-output\KeePassLANShare-Setup.exe`. **No es necesario instalar Python ni uv en los ordenadores de destino**.
 4. Ejecuta el instalador con el usuario Windows que utilizará la aplicación; no requiere permisos de administrador para instalarse en el perfil de usuario.
 5. Deja marcada la tarea «Iniciar automáticamente con Windows» si quieres que se ejecute al iniciar sesión. Desde la ventana también podrás habilitar o deshabilitar el arranque automático.
-6. Para recibir transferencias, permitir la comunicación de red entrante TCP 43187 en el perfil Privado. En ordenadores corporativos podría requerirse una regla administrada por TI. El descubrimiento utiliza mDNS UDP 5353. **No es recomendable abrir esos puertos en redes públicas**.
+6. El instalador pide permisos de administrador (UAC) porque crea dos reglas de entrada en Windows Defender Firewall, solo para el perfil **Privado**: TCP 43187 (transferencias) y UDP 5353 (mDNS). La desinstalación las elimina. Si la red está marcada como **Pública**, cámbiala a Privada antes de probar. En ordenadores corporativos TI puede gestionar estas reglas por política. **No es recomendable abrir esos puertos en redes públicas**.
 
 **Importante:** Linux no puede generar ni probar aquí un instalador Windows de manera fiable. Los scripts y el `.iss` están listos, pero deberán compilarse y probarse en Windows.
 
