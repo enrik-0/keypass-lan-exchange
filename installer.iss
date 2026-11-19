@@ -1,5 +1,5 @@
 #define AppName "KeePass LAN Share"
-#define AppVersion "0.2.1"
+#define AppVersion "0.2.2"
 #define AppExe "KeePassLANShare.exe"
 #define FwTcpRule "KeePass LAN Share TCP 43187"
 #define FwMdnsRule "KeePass LAN Share mDNS 5353"
