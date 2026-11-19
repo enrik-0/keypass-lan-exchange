@@ -1,10 +1,12 @@
 """Local discovery, one-shot authenticated delivery. No credential logging."""
 import hashlib
+import ipaddress
 import socket
 import threading
 from dataclasses import dataclass
 
 from PySide6.QtCore import QObject, Signal
+import ifaddr
 from zeroconf import IPVersion, ServiceBrowser, ServiceInfo, Zeroconf
 
 from secure_protocol import handshake
@@ -20,6 +22,37 @@ class Nearby:
     ip: str
     port: int
     ident: str
+    ips: tuple = ()
+
+
+def _local_networks():
+    """IPv4 networks of the machine's interfaces (used to rank candidate peer addresses)."""
+    nets = []
+    try:
+        for adapter in ifaddr.get_adapters():
+            for item in adapter.ips:
+                if item.is_IPv4 and not item.ip.startswith(('127.', '169.254.')):
+                    try:
+                        nets.append(ipaddress.ip_network(f'{item.ip}/{item.network_prefix}', strict=False))
+                    except ValueError:
+                        pass
+    except Exception:
+        pass
+    return nets
+
+
+def rank_addresses(ips):
+    """Put addresses on a directly attached subnet first; drop link-local/loopback."""
+    nets = _local_networks()
+    clean = [ip for ip in ips if not ip.startswith(('127.', '169.254.'))]
+
+    def key(ip):
+        try:
+            addr = ipaddress.ip_address(ip)
+        except ValueError:
+            return 2
+        return 0 if any(addr in net for net in nets) else 1
+    return sorted(clean, key=key)
 
 
 class Signals(QObject):
@@ -65,6 +98,13 @@ class Discovery:
     def _addresses():
         ips = set()
         try:
+            for adapter in ifaddr.get_adapters():
+                for item in adapter.ips:
+                    if item.is_IPv4 and not item.ip.startswith(('127.', '169.254.')):
+                        ips.add(item.ip)
+        except Exception:
+            pass
+        try:
             for result in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
                 ip = result[4][0]
                 if not ip.startswith(('127.', '169.254.')):
@@ -91,12 +131,12 @@ class Discovery:
         identifier = info.properties.get(b'id', b'').decode('ascii', errors='ignore')
         if identifier == self.identifier or len(identifier) != 16:
             return
-        ips = info.parsed_addresses()
+        ips = rank_addresses(info.parsed_addresses(version=IPVersion.V4Only))
         if not ips:
             return
         host = info.properties.get(b'host', b'Equipo').decode('utf-8', errors='replace')
         with self.lock:
-            self.nearby[name] = Nearby(name, host[:64], ips[0], info.port, identifier)
+            self.nearby[name] = Nearby(name, host[:64], ips[0], info.port, identifier, tuple(ips))
             snapshot = list(self.nearby.values())
         self.signals.discovered.emit(snapshot)
 
@@ -193,7 +233,7 @@ class TransferService:
         try:
             if not secret or len(secret.encode('utf-8')) > 8192:
                 raise ValueError('Selecciona un texto de hasta 8192 bytes.')
-            with socket.create_connection((peer.ip, peer.port), timeout=8) as conn:
+            with self._connect(peer) as conn:
                 conn.settimeout(70)
                 hs = handshake(conn, self.identity, self.name, is_client=True)
                 # Bind peer identity to the mDNS device identifier, not only to a display name.
@@ -213,6 +253,20 @@ class TransferService:
                 self.signals.delivered.emit('Transferencia completada. El receptor ya puede pegar.')
         except Exception as exc:
             self.signals.failure.emit(f'Envío: {type(exc).__name__}: {exc}')
+
+    @staticmethod
+    def _connect(peer):
+        # mDNS may advertise several addresses (VPN, VirtualBox, WSL...); try each one.
+        candidates = list(peer.ips) or [peer.ip]
+        last = None
+        for ip in candidates:
+            try:
+                return socket.create_connection((ip, peer.port), timeout=4)
+            except OSError as exc:
+                last = exc
+        raise ConnectionError(
+            f'No se pudo conectar con {peer.host} (probado: {", ".join(candidates)}, TCP {peer.port}). '
+            f'Revisa el firewall del equipo receptor y que la red no sea «Pública»: {last}')
 
     def close(self):
         self.running = False
