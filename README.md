@@ -28,6 +28,7 @@ Si las politicas de seguridad de la empresa bloquean la descarga o ejecucion del
 3. La **primera vez**, ambos ordenadores muestran un código de 8 dígitos: verificarlo **verbalmente o presencialmente**, no a través del propio canal no autenticado. Ambos deben confirmar.
 4. En el equipo receptor, aceptar la solicitud de envío. La contraseña pasa a su portapapeles durante un máximo de 20 segundos; pegar con Ctrl+V.
 5. En próximos envíos entre equipos emparejados, se mantiene la verificación criptográfica del dispositivo; siempre se exige aceptación de cada contraseña.
+6. Para reconocer un equipo por un nombre cómodo (p. ej., «Pepe» en lugar de `HASASEWQ`), selecciónalo en el desplegable y pulsa **Renombrar equipo seleccionado**. El nombre solo se guarda en este PC (`%LOCALAPPDATA%\KeePassLANShare\aliases.json`), no se envía a otros equipos y no cambia el nombre real del ordenador. Déjalo vacío para quitarlo.
 
 ## Mecanismos de seguridad
 
