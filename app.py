@@ -9,8 +9,9 @@ from PySide6.QtGui import QGuiApplication, QAction
 from PySide6.QtCore import QMimeData
 from PySide6.QtWidgets import (QApplication, QComboBox, QFormLayout, QGroupBox,
     QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox, QPushButton,
-    QVBoxLayout, QWidget, QSystemTrayIcon, QMenu, QStyle, QCheckBox)
+    QVBoxLayout, QWidget, QSystemTrayIcon, QMenu, QStyle, QCheckBox, QInputDialog)
 
+from aliases import AliasStore
 from identity import get_identity, TrustStore
 from network import Signals, Discovery, TransferService
 from secure_protocol import raw_pub
@@ -31,6 +32,7 @@ class MainWindow(QMainWindow):
         self.signals.delivered.connect(self.update_status)
         self.signals.failure.connect(self.on_failure)
         self.trust = TrustStore()
+        self.aliases = AliasStore()
         self.identity = get_identity()
         self.name = socket.gethostname()
         self.clipboard_token = None
@@ -67,6 +69,9 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.autostart)
 
         row2 = QHBoxLayout()
+        self.rename = QPushButton('Renombrar equipo seleccionado')
+        self.rename.clicked.connect(self.rename_peer)
+        row2.addWidget(self.rename)
         self.forget = QPushButton('Olvidar un equipo emparejado')
         self.forget.clicked.connect(self.forget_peer)
         row2.addWidget(self.forget)
@@ -154,17 +159,38 @@ class MainWindow(QMainWindow):
         self.tray.hide()
         QApplication.instance().quit()
 
+    def display_name(self, peer):
+        alias = self.aliases.get(peer.ident)
+        return alias or peer.host
+
     def refresh_peers(self, peers):
         previous = self.devices.currentData()
         prev_instance = previous.instance if previous else None
-        self.items = sorted(peers, key=lambda p: p.host.lower())
+        self.items = sorted(peers, key=lambda p: self.display_name(p).lower())
         self.devices.clear()
         for peer in self.items:
-            self.devices.addItem(f'{peer.host}  [{peer.ip}]', userData=peer)
+            alias = self.aliases.get(peer.ident)
+            text = f'{alias}  ({peer.host})  [{peer.ip}]' if alias else f'{peer.host}  [{peer.ip}]'
+            self.devices.addItem(text, userData=peer)
             if peer.instance == prev_instance:
                 self.devices.setCurrentIndex(self.devices.count() - 1)
         if not self.items:
             self.devices.addItem('Sin equipos disponibles', userData=None)
+
+    def rename_peer(self):
+        peer = self.devices.currentData()
+        if not peer:
+            QMessageBox.information(self, 'Renombrar equipo', 'Selecciona primero un equipo de la lista.')
+            return
+        current = self.aliases.get(peer.ident) or ''
+        name, ok = QInputDialog.getText(self, 'Renombrar equipo',
+            f'Nombre para {peer.host} (solo se ve en este PC; déjalo vacío para quitarlo):',
+            text=current)
+        if not ok:
+            return
+        self.aliases.set(peer.ident, name)
+        self.refresh_peers(self.items)
+        self.update_status(f'Equipo renombrado. Se muestra como «{self.aliases.get(peer.ident) or peer.host}».')
 
     def send(self):
         target = self.devices.currentData()
@@ -187,7 +213,7 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, 'Contenido largo', 'El texto no puede superar los 8192 bytes.')
             return
         answer = QMessageBox.question(self, 'Confirmar destinatario',
-            f'¿Enviar la contraseña copiada desde KeePassXC a {target.host} ({target.ip})?\n\n'
+            f'¿Enviar la contraseña copiada desde KeePassXC a {self.display_name(target)} ({target.host}, {target.ip})?\n\n'
             'El contenido no se muestra en esta ventana ni se guarda en un historial.')
         if answer != QMessageBox.StandardButton.Yes:
             return
