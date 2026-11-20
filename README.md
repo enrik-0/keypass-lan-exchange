@@ -8,7 +8,7 @@ Transfiere una contraseña copiada desde KeePassXC al portapapeles de otro PC Wi
 2. Ejecutar **`start.bat`** con doble clic. No hace falta instalar Python ni uv manualmente.
 3. Si `uv` no existe, el primer inicio descarga su instalador oficial y lo guarda **solo en `.tools\uv`**; no modifica el `PATH`. Si ya existe `uv` en el sistema lo reutiliza.
 4. `uv sync` descarga Python 3.12 si hace falta, crea `.venv` automáticamente y sincroniza las dependencias. En inicios posteriores, reutiliza el entorno. **La primera ejecución necesita Internet** y acceso a `astral.sh`, GitHub (descargas) y al índice de paquetes, salvo que ya estén en caché.
-5. Cuando Windows Defender Firewall pregunte, permitir la aplicación **solo en redes privadas autorizadas**. Si no aparece una solicitud, gestionar la regla de entrada para **TCP 43187** en el perfil **Privado**. El descubrimiento usa mDNS **UDP 5353**, que también debe permitirse en los equipos afectados. No habilitar reglas en redes públicas.
+5. El instalador crea las reglas de firewall necesarias (ver paso 6). Si el firewall pregunta por la aplicación, **no** la bloquees: las reglas creadas por el instalador son las que deben estar activas. Si el envío falla con timeout, comprueba que existen las reglas «KeePass LAN Share TCP 43187» y «KeePass LAN Share mDNS 5353» (`Get-NetFirewallRule -DisplayName 'KeePass LAN Share*'`) y que no hay una regla de bloqueo para `KeePassLANShare.exe`.
 6. En ambos equipos debe aparecer el otro en el desplegable. Si no aparece, comprobar que estén en la misma LAN y que la red no bloquee multicast/mDNS, las interfaces IPv4 anunciadas o los puertos anteriores.
 
 ## Inicio automatico con uv
